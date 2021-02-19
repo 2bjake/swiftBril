@@ -15,13 +15,19 @@ private func removeUnusedLabels(_ function: Function) -> Function {
     return function
 }
 
-private func removeUnusedAssignmentsOnePass(_ function: Function) -> (changed: Bool, function: Function) {
+private func removeUnusedAssignmentsSinglePass(_ function: Function) -> (changed: Bool, function: Function) {
     var changed = false
     var function = function
 
     let usedVars = Set(function.code.flatMap(\.arguments))
     function.code.removeAll {
         guard let destination = $0.destination else { return false }
+
+        // call can have side effects, so don't remove it even if destination isn't used
+        if case .instruction(.value(let op)) = $0, op.opType == .call {
+            return false
+        }
+
         if !usedVars.contains(destination) {
             changed = true
             return true
@@ -32,9 +38,9 @@ private func removeUnusedAssignmentsOnePass(_ function: Function) -> (changed: B
 }
 
 private func removeUnusedAssignments(_ function: Function) -> Function {
-    var (changed, function) = removeUnusedAssignmentsOnePass(function)
+    var (changed, function) = removeUnusedAssignmentsSinglePass(function)
     while changed {
-        (changed, function) = removeUnusedAssignmentsOnePass(function)
+        (changed, function) = removeUnusedAssignmentsSinglePass(function)
     }
     return function
 }
