@@ -8,8 +8,11 @@
 struct EffectOperation {
     enum OpType: String {
         case jmp
-        case print
+        case br
+        case call
         case ret
+        case print
+        case nop
     }
     let opType: OpType
     let arguments: [String]
