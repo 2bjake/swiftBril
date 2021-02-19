@@ -9,7 +9,7 @@ struct Function {
     var name: String
     @DefaultDecodable var arguments: [Argument]
     var type: Type?
-    var instructions: [Code]
+    var code: [Code]
 }
 
 extension Function: Decodable {
@@ -17,7 +17,7 @@ extension Function: Decodable {
         case name
         case arguments = "args"
         case type
-        case instructions = "instrs"
+        case code = "instrs"
     }
 }
 
@@ -32,7 +32,7 @@ extension Function: CustomStringConvertible {
         if let type = type {
             val += ": \(type)"
         }
-        val += " {\n" + instructions.map(String.init).joined(separator: "\n") + "\n}"
+        val += " {\n" + code.map(String.init).joined(separator: "\n") + "\n}"
 
         return val
     }

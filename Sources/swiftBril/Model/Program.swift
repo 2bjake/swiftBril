@@ -11,6 +11,6 @@ struct Program: Decodable {
 
 extension Program: CustomStringConvertible {
     var description: String {
-        functions.map { "\($0)" }.joined(separator: "\n\n")
+        functions.map(String.init).joined(separator: "\n\n")
     }
 }

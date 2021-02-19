@@ -23,7 +23,7 @@ extension Code: Decodable {
         } else if container.contains(.op) {
             self = .instruction(try Instruction(from: decoder))
         } else {
-            throw BrilParseError(message: "Did not contain 'label' or 'op'")
+            throw BrilParseError(message: "instr entry did not contain 'label' or 'op' field")
         }
     }
 }
@@ -37,7 +37,4 @@ extension Code: CustomStringConvertible {
                 return "  \(instruction)"
         }
     }
-
-
-
 }
