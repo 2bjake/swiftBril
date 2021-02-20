@@ -11,6 +11,16 @@ enum Instruction {
     case effect(EffectOperation)
 }
 
+extension Instruction {
+    var operation: Operation {
+        switch self {
+            case .const(let op): return op
+            case .value(let op): return op
+            case .effect(let op): return op
+        }
+    }
+}
+
 extension Instruction: Decodable {
     enum CodingKeys: CodingKey {
         case op

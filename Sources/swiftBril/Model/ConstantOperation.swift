@@ -27,4 +27,3 @@ struct ConstantOperation {
     let type: Type
     let value: Literal
 }
-
