@@ -10,6 +10,22 @@ enum Literal {
     case int(Int)
 }
 
+extension Literal {
+    var int: Int? {
+        switch self {
+            case .bool: return nil
+            case .int(let int): return int
+        }
+    }
+
+    var bool: Bool? {
+        switch self {
+            case .bool(let bool): return bool
+            case .int: return nil
+        }
+    }
+}
+
 extension Literal: Hashable { }
 
 extension Literal: CustomStringConvertible {

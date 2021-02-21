@@ -37,8 +37,48 @@ private extension ValueTable.Value {
     }
 }
 
+private extension ValueOperation.OpType {
+    var binaryFoldOperator: ((Literal, Literal) -> Literal)? {
+        switch self {
+            case .add: return { .int($0.int! + $1.int!) }
+            case .sub: return { .int($0.int! - $1.int!) }
+            case .mul: return { .int($0.int! * $1.int!) }
+            case .div: return { .int($0.int! / $1.int!) }
+            case .eq: return { .bool($0.int! == $1.int!) }
+            case .lt: return { .bool($0.int! < $1.int!) }
+            case .gt: return { .bool($0.int! > $1.int!) }
+            case .le: return { .bool($0.int! <= $1.int!) }
+            case .ge: return { .bool($0.int! >= $1.int!) }
+            case .and: return { .bool($0.bool! && $1.bool!) }
+            case .or: return { .bool($0.bool! || $1.bool!) }
+            default: return nil
+        }
+    }
+
+    var unaryFoldOperator: ((Literal) -> Literal)? {
+        guard self == .not else { return nil }
+        return { .bool(!$0.bool!) }
+    }
+}
+
 extension Optimizations {
-    static func lvn(function: Function) -> Function {
+    private static func fold(op: ValueOperation, table: ValueTable, varToNum: [String: Int]) -> Literal? {
+        let constants: [Literal] = op.arguments.compactMap {
+            guard case .constant(let constant) = table.entryForNumber(varToNum[$0]!).value else {
+                return nil
+            }
+            return constant
+        }
+
+        if constants.count == 1 {
+            return op.opType.unaryFoldOperator?(constants[0])
+        } else if constants.count == 2 {
+            return op.opType.binaryFoldOperator?(constants[0], constants[1])
+        }
+        return nil
+    }
+
+    static func lvnRewrite(function: Function) -> Function {
         var function = function
         for block in function.blocks {
             var table = ValueTable()
@@ -49,7 +89,7 @@ extension Optimizations {
                     let entry = table.entryForValue(value) ?? table.insert(value: value, variableName: op.destination)
                     varToNum[op.destination] = entry.number
                 } else if case .instruction(.value(let op)) = block[i], op.opType != .call {
-                    let value: ValueTable.Value
+                    var value: ValueTable.Value
                     if op.opType == .id, let variableName = op.arguments.first, let num = varToNum[variableName] {
                         value = table.entryForNumber(num).value
                     } else {
@@ -71,6 +111,12 @@ extension Optimizations {
                         }
                         varToNum[op.destination] = entry.number
                     } else {
+                        // it's a new value. can we constant fold before saving it?
+                        if let foldConstant = fold(op: op, table: table, varToNum: varToNum) {
+                            function.code[i] = .makeConstant(foldConstant, from: op)
+                            value = ValueTable.Value.constant(foldConstant)
+                        }
+
                         let entry = table.insert(value: value, variableName: op.destination)
                         varToNum[op.destination] = entry.number
                     }

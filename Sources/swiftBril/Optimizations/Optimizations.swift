@@ -54,7 +54,7 @@ extension Program {
     mutating func optimize() -> Self {
         functions = functions
             .map(Optimizations.removeUnusedLabels)
-            .map(Optimizations.lvn)
+            .map(Optimizations.lvnRewrite)
             .map(Optimizations.removeUnusedAssignments)
             .map(Optimizations.removeRedundantAssignments)
         return self
