@@ -10,6 +10,8 @@ enum Literal {
     case int(Int)
 }
 
+extension Literal: Hashable { }
+
 extension Literal: CustomStringConvertible {
     var description: String {
         switch self {

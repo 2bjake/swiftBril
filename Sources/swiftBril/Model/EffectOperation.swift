@@ -15,7 +15,7 @@ struct EffectOperation {
         case nop
     }
     let opType: OpType
-    let arguments: [String]
+    var arguments: [String]
     let functions: [String]
     let labels: [String]
 }

@@ -32,7 +32,7 @@ extension Code: CustomStringConvertible {
     var description: String {
         switch self {
             case .label(let label):
-                return ".\(label)"
+                return ".\(label):"
             case .instruction(let instruction):
                 return "  \(instruction)"
         }

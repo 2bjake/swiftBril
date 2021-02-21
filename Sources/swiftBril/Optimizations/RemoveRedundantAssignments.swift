@@ -13,55 +13,12 @@ private extension Array {
     }
 }
 
-private extension Code {
-    var isBlockTerminator: Bool {
-        switch self {
-            case .label:
-                return true
-            case .instruction(.effect(let op)):
-                return [.jmp, .br, .ret].contains(op.opType)
-            default:
-                return false
-        }
-    }
-}
-
-private extension Function {
-    var blocks: [ArraySlice<Code>] {
-        var result = [ArraySlice<Code>]()
-
-        func appendSlice(range: ClosedRange<Int>) {
-            var slice = code[range]
-            if case .label = slice.last {
-                slice = slice.dropLast()
-            }
-            if !slice.isEmpty {
-                result.append(slice)
-            }
-        }
-
-        var blockStart = 0
-        for i in 0..<code.count {
-            if code[i].isBlockTerminator {
-                appendSlice(range: blockStart...i)
-                blockStart = i + 1
-            }
-        }
-
-        if blockStart < code.count {
-            appendSlice(range: blockStart...(code.count - 1))
-        }
-
-        return result
-    }
-}
-
 extension Optimizations {
     private static func findRedundantAssignmentIndiciesSinglePass(_ function: Function) -> [Int] {
         var deleteIndicies = [Int]()
         for block in function.blocks {
             var lastDef = [String: Int]()
-            for i in block.startIndex..<block.endIndex {
+            for i in block.indices {
                 block[i].arguments.forEach {
                     lastDef[$0] = nil
                 }

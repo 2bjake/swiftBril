@@ -25,7 +25,7 @@ struct ValueOperation {
     let opType: OpType
     let destination: String
     let type: Type
-    let arguments: [String]
+    var arguments: [String]
     let functions: [String]
     let labels: [String]
 }
