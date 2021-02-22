@@ -23,7 +23,7 @@ struct ValueOperation {
         case id
     }
     let opType: OpType
-    let destination: String
+    var destination: String
     let type: Type
     var arguments: [String]
     let functions: [String]

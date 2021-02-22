@@ -9,6 +9,7 @@ struct ValueTable {
     enum Value: Hashable {
         case constant(Literal)
         case value(op: String, valueNums: [Int])
+        case inputVariable(name: String)
     }
 
     class Entry {
@@ -35,9 +36,8 @@ struct ValueTable {
     }
 
     @discardableResult
-    mutating func insertIdentity(variableName: String) -> Int {
-        let num = orderedEntries.count
-        let value = Value.value(op: ValueOperation.OpType.id.rawValue, valueNums: [num])
+    mutating func insertInputVariable(_ variableName: String) -> Int {
+        let value = Value.inputVariable(name: variableName)
         return insert(value: value, variableName: variableName).number
     }
 

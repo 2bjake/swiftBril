@@ -41,7 +41,7 @@ struct ConstantOperation {
     static let opName = "const"
 
     let name = opName
-    let destination: String
+    var destination: String
     let type: Type
     let value: Literal
 }

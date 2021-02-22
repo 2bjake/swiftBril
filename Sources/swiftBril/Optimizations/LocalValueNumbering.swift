@@ -14,6 +14,18 @@ private extension Code {
         return .instruction(.const(.init(destination: original.destination, type: original.type, value: constant)))
     }
 
+    static func makeNewDestination(_ destination: String, from original: ValueOperation) -> Code {
+        var new = original
+        new.destination = destination
+        return .instruction(.value(new))
+    }
+
+    static func makeNewDestination(_ destination: String, from original: ConstantOperation) -> Code {
+        var new = original
+        new.destination = destination
+        return .instruction(.const(new))
+    }
+
     mutating func replaceArgsWith(_ args: [String]) {
         switch self {
             case .instruction(.value(var op)):
@@ -78,16 +90,62 @@ extension Optimizations {
         return nil
     }
 
-    static func lvnRewrite(function: Function) -> Function {
+    private static func insertInputsIfReassigned(function: Function) -> Function {
         var function = function
+        for block in function.blocks {
+            var varsWritten = [String: Type]()
+            var varsReadBeforeWrite = Set<String>()
+            for i in block.indices {
+                varsReadBeforeWrite.formUnion(Set(block[i].arguments).subtracting(varsWritten.keys))
+                if let dest = block[i].destination, let type = block[i].type {
+                    varsWritten[dest] = type
+                }
+            }
+
+            for (dest, type) in varsWritten where varsReadBeforeWrite.contains(dest) {
+                let code = Code.instruction(.value(.init(opType: .id, destination: dest, type: type, arguments: [dest], functions: [], labels: [])))
+                function.code.insert(code, at: block.startIndex)
+            }
+
+        }
+        return function
+    }
+
+    static private var uniqueNum = 0
+    static private func makeUniqueNameFor(_ orig: String) -> String {
+        let str = "lvn\(uniqueNum).\(orig)"
+        uniqueNum += 1
+        return str
+    }
+
+    static func lvnRewrite(function: Function) -> Function {
+        var function = insertInputsIfReassigned(function: function)
         for block in function.blocks {
             var table = ValueTable()
             var varToNum = [String: Int]()
+
+            let varToLastWriteIndex: [String: Int] = block.indices.reduce(into: [:]) { result, index in
+                if let dest = block[index].destination {
+                    result[dest] = index
+                }
+            }
+
             for i in block.indices {
+                var valueNumber: Int?
+
                 if case .instruction(.const(let op)) = block[i] {
                     let value = ValueTable.Value.constant(op.value)
-                    let entry = table.entryForValue(value) ?? table.insert(value: value, variableName: op.destination)
-                    varToNum[op.destination] = entry.number
+
+                    // if op.destination is overwritten later, we need to save this under
+                    // a unique new name.
+                    var dest = op.destination
+                    if let lastWriteIndex = varToLastWriteIndex[op.destination], lastWriteIndex > i {
+                        dest = makeUniqueNameFor(dest)
+                        function.code[i] = Code.makeNewDestination(dest, from: op)
+                    }
+
+                    let entry = table.entryForValue(value) ?? table.insert(value: value, variableName: dest)
+                    valueNumber = entry.number
                 } else if case .instruction(.value(let op)) = block[i], op.opType != .call {
                     var value: ValueTable.Value
                     if op.opType == .id, let variableName = op.arguments.first, let num = varToNum[variableName] {
@@ -95,7 +153,7 @@ extension Optimizations {
                     } else {
                         value = ValueTable.Value(op.opType, argNumbers: block[i].arguments.map {
                             if varToNum[$0] == nil {
-                                let num = table.insertIdentity(variableName: $0)
+                                let num = table.insertInputVariable($0)
                                 varToNum[$0] = num
                             }
                             return varToNum[$0]!
@@ -106,10 +164,10 @@ extension Optimizations {
                         switch entry.value {
                             case .constant(let constant):
                                 function.code[i] = .makeConstant(constant, from: op)
-                            case .value:
+                            case .value, .inputVariable:
                                 function.code[i] = .makeId(entry.variableName, from: op)
                         }
-                        varToNum[op.destination] = entry.number
+                        valueNumber = entry.number
                     } else {
                         // it's a new value. can we constant fold before saving it?
                         if let foldConstant = fold(op: op, table: table, varToNum: varToNum) {
@@ -117,8 +175,15 @@ extension Optimizations {
                             value = ValueTable.Value.constant(foldConstant)
                         }
 
-                        let entry = table.insert(value: value, variableName: op.destination)
-                        varToNum[op.destination] = entry.number
+                        // if op.destination is overwritten later, we need to save this under
+                        // a unique new name.
+                        var dest = op.destination
+                        if let lastWriteIndex = varToLastWriteIndex[op.destination], lastWriteIndex > i {
+                            dest = makeUniqueNameFor(dest)
+                            function.code[i] = Code.makeNewDestination(dest, from: op)
+                        }
+                        let entry = table.insert(value: value, variableName: dest)
+                        valueNumber = entry.number
                     }
                 }
 
@@ -128,6 +193,10 @@ extension Optimizations {
                         return table.entryForNumber(num).variableName
                     }
                     function.code[i].replaceArgsWith(newArgs)
+                }
+
+                if let valueNumber = valueNumber, let dest = block[i].destination {
+                    varToNum[dest] = valueNumber
                 }
             }
 
