@@ -35,10 +35,6 @@ enum DataFlowAnalyzer {
         var labelToOutVars: [String: Set<String>] = cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
 
         while let label = worklist.popFirst(), let block = cfg.labeledBlocks[label] {
-//            labelToInVars[label] = cfg.predecessorLabels(of: label).reduce(into: []) { result, value in
-//                result?.formIntersection(labelToOutVars[value] ?? [])
-//            }
-
             labelToInVars[label] = merge(cfg.predecessorLabels(of: label).compactMap { labelToOutVars[$0] })
 
             let newOutVars = labelToInVars[label]!.union(block.compactMap(\.destinationIfPresent))

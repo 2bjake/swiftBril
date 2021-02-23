@@ -5,14 +5,6 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
-private extension Array {
-    mutating func removeAll(at indicies: [Int]) {
-        for index in indicies.sorted(by: >) {
-            remove(at: index)
-        }
-    }
-}
-
 extension Optimizations {
     private static func findRedundantAssignmentIndiciesSinglePass(_ function: Function) -> [Int] {
         var deleteIndicies = [Int]()

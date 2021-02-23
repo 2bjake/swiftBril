@@ -7,6 +7,14 @@
 
 enum Optimizations { }
 
+extension Array {
+    mutating func removeAll(at indicies: [Int]) {
+        for index in indicies.sorted(by: >) {
+            remove(at: index)
+        }
+    }
+}
+
 private extension Code {
     var isBlockTerminator: Bool {
         switch self {
@@ -50,10 +58,43 @@ extension Function {
     }
 }
 
+enum BlockLabel {
+    case entry
+    case labeled(String)
+    case unlabeled(String)
+}
+
+extension BlockLabel {
+    var label: String {
+        switch self {
+            case .entry: return "entry"
+            case .labeled(let value), .unlabeled(let value): return value
+        }
+    }
+}
+
+extension BlockLabel: Hashable { }
+
+extension Function {
+    var labeledBlocks: [BlockLabel: ArraySlice<Code>] {
+        blocks.reduce(into: [:]) { result, block in
+            let blockLabel: BlockLabel
+            if block.startIndex == 0 {
+                blockLabel = .entry
+            } else if case .label(let label) = code[block.startIndex - 1] {
+                blockLabel = .labeled(label)
+            } else {
+                blockLabel = .unlabeled("\(block.startIndex)")
+            }
+            result[blockLabel] = block
+        }
+    }
+}
+
 extension Program {
     mutating func optimize() -> Self {
         functions = functions
-            .map(Optimizations.removeUnusedLabels)
+            .map(Optimizations.removeUnreachableCode)
             .map(Optimizations.lvnRewrite)
             .map(Optimizations.removeUnusedAssignments)
             .map(Optimizations.removeRedundantAssignments)

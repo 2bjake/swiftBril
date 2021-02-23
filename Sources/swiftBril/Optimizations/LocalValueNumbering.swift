@@ -14,16 +14,16 @@ private extension Code {
         return .instruction(.const(.init(destination: original.destination, type: original.type, value: constant)))
     }
 
-    static func makeNewDestination(_ destination: String, from original: ValueOperation) -> Code {
-        var new = original
-        new.destination = destination
-        return .instruction(.value(new))
-    }
-
-    static func makeNewDestination(_ destination: String, from original: ConstantOperation) -> Code {
-        var new = original
-        new.destination = destination
-        return .instruction(.const(new))
+    mutating func changeDestinationTo(_ destination: String) {
+        switch self {
+            case .instruction(.const(var op)):
+                op.destination = destination
+                self = .instruction(.const(op))
+            case .instruction(.value(var op)):
+                op.destination = destination
+                self = .instruction(.value(op))
+            default: break
+        }
     }
 
     mutating func replaceArgsWith(_ args: [String]) {
@@ -141,7 +141,7 @@ extension Optimizations {
                     var dest = op.destination
                     if let lastWriteIndex = varToLastWriteIndex[op.destination], lastWriteIndex > i {
                         dest = makeUniqueNameFor(dest)
-                        function.code[i] = Code.makeNewDestination(dest, from: op)
+                        function.code[i].changeDestinationTo(dest)
                     }
 
                     let entry = table.entryForValue(value) ?? table.insert(value: value, variableName: dest)
@@ -180,7 +180,7 @@ extension Optimizations {
                         var dest = op.destination
                         if let lastWriteIndex = varToLastWriteIndex[op.destination], lastWriteIndex > i {
                             dest = makeUniqueNameFor(dest)
-                            function.code[i] = Code.makeNewDestination(dest, from: op)
+                            function.code[i].changeDestinationTo(dest)
                         }
                         let entry = table.insert(value: value, variableName: dest)
                         valueNumber = entry.number

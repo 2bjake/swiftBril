@@ -5,22 +5,6 @@
 //  Created by Jake Foster on 2/22/21.
 //
 
-private extension Function {
-    var namedBlocks: [String: ArraySlice<Code>] {
-        blocks.reduce(into: [:]) { result, block in
-            let name: String
-            if block.startIndex == 0 {
-                name = "entry"
-            } else if case .label(let label) = code[block.startIndex - 1] {
-                name = label
-            } else {
-                name = "\(block.startIndex)"
-            }
-            result[name] = block
-        }
-    }
-}
-
 struct ControlFlowGraph {
     let labeledBlocks: [String: ArraySlice<Code>]
     private let labelToSuccessorLabels: [String: [String]]
@@ -42,8 +26,8 @@ struct ControlFlowGraph {
         labelToPredecessorLabels[label]?.compactMap { labeledBlocks[$0] } ?? []
     }
 
-    init(function: Function, removeUnreachableCode: Bool = true) {
-        labeledBlocks = function.namedBlocks
+    init(function: Function) {
+        labeledBlocks = .init(uniqueKeysWithValues: function.labeledBlocks.map { (key: $0.key.label, value: $0.value) })
         labelToSuccessorLabels = labeledBlocks.reduce(into: [:]) { result, entry in
             let (label, block) = entry
             if case .instruction(.effect(let op)) = block.last, op.opType == .ret {
