@@ -97,7 +97,7 @@ extension Optimizations {
             var varsReadBeforeWrite = Set<String>()
             for i in block.indices {
                 varsReadBeforeWrite.formUnion(Set(block[i].arguments).subtracting(varsWritten.keys))
-                if let dest = block[i].destination, let type = block[i].type {
+                if let dest = block[i].destinationIfPresent, let type = block[i].typeIfPresent {
                     varsWritten[dest] = type
                 }
             }
@@ -125,7 +125,7 @@ extension Optimizations {
             var varToNum = [String: Int]()
 
             let varToLastWriteIndex: [String: Int] = block.indices.reduce(into: [:]) { result, index in
-                if let dest = block[index].destination {
+                if let dest = block[index].destinationIfPresent {
                     result[dest] = index
                 }
             }
@@ -195,7 +195,7 @@ extension Optimizations {
                     function.code[i].replaceArgsWith(newArgs)
                 }
 
-                if let valueNumber = valueNumber, let dest = block[i].destination {
+                if let valueNumber = valueNumber, let dest = block[i].destinationIfPresent {
                     varToNum[dest] = valueNumber
                 }
             }

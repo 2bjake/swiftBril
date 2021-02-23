@@ -54,6 +54,6 @@ extension Code {
     var arguments: [String] { operation?.arguments ?? [] }
     var functions: [String] { operation?.functions ?? [] }
     var labels: [String] { operation?.labels ?? [] }
-    var destination: String? { operation?.destinationIfPresent }
-    var type: Type? { operation?.typeIfPresent }
+    var destinationIfPresent: String? { operation?.destinationIfPresent }
+    var typeIfPresent: Type? { operation?.typeIfPresent }
 }

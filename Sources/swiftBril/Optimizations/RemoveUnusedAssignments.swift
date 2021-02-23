@@ -12,7 +12,7 @@ extension Optimizations {
 
         let usedVars = Set(function.code.flatMap(\.arguments))
         function.code.removeAll {
-            guard let assignedVar = $0.destination else { return false }
+            guard let assignedVar = $0.destinationIfPresent else { return false }
 
             // call can have side effects, so don't remove it even if destination isn't used
             if case .instruction(.value(let op)) = $0, op.opType == .call {

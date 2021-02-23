@@ -23,7 +23,7 @@ extension Optimizations {
                     lastDef[$0] = nil
                 }
 
-                if let dest = block[i].destination {
+                if let dest = block[i].destinationIfPresent {
                     if let unusedIdx = lastDef[dest] {
                         deleteIndicies.append(unusedIdx)
                     }

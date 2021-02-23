@@ -29,9 +29,9 @@ extension Function {
             if case .label = slice.last {
                 slice = slice.dropLast()
             }
-            if !slice.isEmpty {
+            //if !slice.isEmpty {
                 result.append(slice)
-            }
+            //}
         }
 
         var blockStart = 0
