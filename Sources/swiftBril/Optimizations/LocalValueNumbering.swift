@@ -92,7 +92,7 @@ extension Optimizations {
 
     private static func insertInputsIfReassigned(function: Function) -> Function {
         var function = function
-        for block in function.blocks {
+        for block in function.makeBlocks() {
             var varsWritten = [String: Type]()
             var varsReadBeforeWrite = Set<String>()
             for i in block.indices {
@@ -120,7 +120,7 @@ extension Optimizations {
 
     static func lvnRewrite(function: Function) -> Function {
         var function = insertInputsIfReassigned(function: function)
-        for block in function.blocks {
+        for block in function.makeBlocks() {
             var table = ValueTable()
             var varToNum = [String: Int]()
 

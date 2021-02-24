@@ -8,7 +8,7 @@
 extension Optimizations {
     private static func findRedundantAssignmentIndiciesSinglePass(_ function: Function) -> [Int] {
         var deleteIndicies = [Int]()
-        for block in function.blocks {
+        for block in function.makeBlocks() {
             var lastDef = [String: Int]()
             for i in block.indices {
                 block[i].arguments.forEach {

@@ -27,7 +27,7 @@ struct ControlFlowGraph {
     }
 
     init(function: Function) {
-        labeledBlocks = .init(uniqueKeysWithValues: function.labeledBlocks.map { (key: $0.key.label, value: $0.value) })
+        labeledBlocks = .init(uniqueKeysWithValues: function.makeLabeledBlocks().map { (key: $0.key.label, value: $0.value) })
         labelToSuccessorLabels = labeledBlocks.reduce(into: [:]) { result, entry in
             let (label, block) = entry
             if case .instruction(.effect(let op)) = block.last, op.opType == .ret {

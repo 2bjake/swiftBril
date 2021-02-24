@@ -22,8 +22,7 @@ enum DataFlowAnalyzer {
  */
 
     private static func merge(_ values: [Set<String>]) -> Set<String> {
-        guard let result = values.first else { return [] }
-        return values.dropFirst().reduce(into: result) { $0.formIntersection($1) }
+        return values.reduce(into: []) { $0.formUnion($1) }
     }
 
     static func findInitializedVariables(function: Function) -> [String: Set<String>] {

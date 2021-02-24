@@ -28,36 +28,6 @@ private extension Code {
     }
 }
 
-extension Function {
-    var blocks: [ArraySlice<Code>] {
-        var result = [ArraySlice<Code>]()
-
-        func appendSlice(range: ClosedRange<Int>) {
-            var slice = code[range]
-            if case .label = slice.last {
-                slice = slice.dropLast()
-            }
-            //if !slice.isEmpty {
-                result.append(slice)
-            //}
-        }
-
-        var blockStart = 0
-        for i in code.indices {
-            if code[i].isBlockTerminator {
-                appendSlice(range: blockStart...i)
-                blockStart = i + 1
-            }
-        }
-
-        if blockStart < code.count {
-            appendSlice(range: blockStart...(code.count - 1))
-        }
-
-        return result
-    }
-}
-
 enum BlockLabel {
     case entry
     case labeled(String)
@@ -76,18 +46,57 @@ extension BlockLabel {
 extension BlockLabel: Hashable { }
 
 extension Function {
-    var labeledBlocks: [BlockLabel: ArraySlice<Code>] {
-        blocks.reduce(into: [:]) { result, block in
-            let blockLabel: BlockLabel
-            if block.startIndex == 0 {
-                blockLabel = .entry
-            } else if case .label(let label) = code[block.startIndex - 1] {
-                blockLabel = .labeled(label)
-            } else {
-                blockLabel = .unlabeled("\(block.startIndex)")
-            }
-            result[blockLabel] = block
+    private func makeBlock(startingAt idx: Int) -> (BlockLabel, ArraySlice<Code>)? {
+        guard idx < code.count else { return nil }
+        let label: BlockLabel
+        let blockStart: Int
+        if case .label(let labelName) = code[idx] {
+            label = .labeled(labelName)
+            blockStart = idx + 1
+        } else {
+            label = idx == 0 ? .entry : .unlabeled("\(idx)")
+            blockStart = idx
         }
+
+        if blockStart >= code.count {
+            return (label, [])
+        }
+
+        for i in blockStart..<code.count {
+            if code[i].isBlockTerminator {
+                var slice = code[blockStart...i]
+                if case .label = slice.last {
+                    slice = slice.dropLast()
+                }
+                return (label, slice)
+            }
+        }
+        return (label, code[blockStart...(code.count - 1)])
+    }
+
+    func makeLabeledBlocks() -> [BlockLabel: ArraySlice<Code>] {
+        var result = [BlockLabel: ArraySlice<Code>]()
+        var curIdx = 0
+        while let (label, block) = makeBlock(startingAt: curIdx) {
+            result[label] = block
+            curIdx = block.endIndex
+        }
+        return result
+    }
+
+    func makeBlocks() -> [ArraySlice<Code>] {
+        var result = [ArraySlice<Code>]()
+        var curIdx = 0
+        while let (_, block) = makeBlock(startingAt: curIdx) {
+            if !block.isEmpty {
+                result.append(block)
+                curIdx = block.endIndex
+            } else {
+                curIdx += 1
+            }
+        }
+        print(result)
+        return result
     }
 }
 

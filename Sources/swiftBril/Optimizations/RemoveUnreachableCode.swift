@@ -8,7 +8,7 @@
 extension Optimizations {
     private static func findDeadCodeIndicies(function: Function) -> [Int] {
         var result = [Int]()
-        for (label, block) in function.labeledBlocks {
+        for (label, block) in function.makeLabeledBlocks() {
             if case .unlabeled = label {
                 result.append(contentsOf: block.indices)
             }
