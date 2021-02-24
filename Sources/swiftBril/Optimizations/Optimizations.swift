@@ -95,7 +95,6 @@ extension Function {
                 curIdx += 1
             }
         }
-        print(result)
         return result
     }
 }

@@ -5,44 +5,40 @@
 //  Created by Jake Foster on 2/22/21.
 //
 
-
-
 enum DataFlowAnalyzer {
-/*
-    in[entry] = init
-    out[*] = init
-
-    worklist = all blocks
-    while worklist is not empty:
-        b = pick any block from worklist
-        in[b] = merge(out[p] for every predecessor p of b)
-        out[b] = transfer(b, in[b])
-        if out[b] changed:
-            worklist += successors of b
- */
-
-    private static func merge(_ values: [Set<String>]) -> Set<String> {
-        return values.reduce(into: []) { $0.formUnion($1) }
+    private static func union<T>(values: [Set<T>]) -> Set<T> {
+        values.reduce(into: []) { $0.formUnion($1) }
     }
 
-    static func findInitializedVariables(function: Function) -> [String: Set<String>] {
+    static func findDefinedVariables(function: Function) -> [String: Set<String>] {
+        return forwardAnalyzer(function: function,
+                               inInitializer: { ["entry": Set($0.arguments.map(\.name))] },
+                               merge: union,
+                               transfer: { block, values in values.union(block.compactMap(\.destinationIfPresent)) })
+
+    }
+
+    private static func forwardAnalyzer<T>(function: Function,
+                                           inInitializer: (Function) -> [String: Set<T>] = { _ in [:] },
+                                           outInitializer: ((Function) -> [String: Set<T>])? = nil,
+                                           merge: ([Set<T>]) -> Set<T>,
+                                           transfer: (ArraySlice<Code>, Set<T>) -> Set<T>) -> [String: Set<T>] {
         let cfg = ControlFlowGraph(function: function)
         var worklist = Set(cfg.labeledBlocks.keys)
 
-        var labelToInVars = [String: Set<String>]()
-        labelToInVars["entry"] = Set(function.arguments.map(\.name))
-        var labelToOutVars: [String: Set<String>] = cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
+        var inValues = inInitializer(function)
+        var outValues = outInitializer?(function) ?? cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
 
         while let label = worklist.popFirst(), let block = cfg.labeledBlocks[label] {
-            labelToInVars[label] = merge(cfg.predecessorLabels(of: label).compactMap { labelToOutVars[$0] })
+            let predecessorValues = cfg.predecessorLabels(of: label).compactMap { outValues[$0] }
+            inValues[label] = merge(predecessorValues)
 
-            let newOutVars = labelToInVars[label]!.union(block.compactMap(\.destinationIfPresent))
-            if newOutVars != labelToOutVars[label] {
+            let newOutValues = transfer(block, inValues[label] ?? [])
+            if newOutValues != outValues[label] {
                 worklist.formUnion(cfg.successorLabels(of: label))
+                outValues[label] = newOutValues
             }
-            labelToOutVars[label] = newOutVars
         }
-        return labelToOutVars
+        return outValues
     }
-    
 }
