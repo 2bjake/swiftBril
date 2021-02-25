@@ -46,7 +46,7 @@ extension BlockLabel {
 extension BlockLabel: Hashable { }
 
 extension Function {
-    private func makeBlock(startingAt idx: Int) -> (BlockLabel, ArraySlice<Code>)? {
+    func makeBlock(startingAt idx: Int) -> (BlockLabel, ArraySlice<Code>)? {
         guard idx < code.count else { return nil }
         let label: BlockLabel
         let blockStart: Int
@@ -74,14 +74,16 @@ extension Function {
         return (label, code[blockStart...(code.count - 1)])
     }
 
-    func makeLabeledBlocks() -> [BlockLabel: ArraySlice<Code>] {
-        var result = [BlockLabel: ArraySlice<Code>]()
+    func makeLabeledBlocks() -> (labeledBlocks: [BlockLabel: ArraySlice<Code>], orderedLabels: [String]) {
+        var labeledBlocks = [BlockLabel: ArraySlice<Code>]()
+        var orderedLabels = [String]()
         var curIdx = 0
         while let (label, block) = makeBlock(startingAt: curIdx) {
-            result[label] = block
+            labeledBlocks[label] = block
+            orderedLabels.append(label.label)
             curIdx = block.endIndex
         }
-        return result
+        return (labeledBlocks, orderedLabels)
     }
 
     func makeBlocks() -> [ArraySlice<Code>] {

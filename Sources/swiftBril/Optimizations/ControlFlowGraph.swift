@@ -7,6 +7,7 @@
 
 struct ControlFlowGraph {
     let labeledBlocks: [String: ArraySlice<Code>]
+    let orderedLabels: [String]
     private let labelToSuccessorLabels: [String: [String]]
     private let labelToPredecessorLabels: [String: [String]]
 
@@ -27,7 +28,9 @@ struct ControlFlowGraph {
     }
 
     init(function: Function) {
-        labeledBlocks = .init(uniqueKeysWithValues: function.makeLabeledBlocks().map { (key: $0.key.label, value: $0.value) })
+        let (blocks, orderedLabels) = function.makeLabeledBlocks()
+        labeledBlocks = .init(uniqueKeysWithValues: blocks.map { (key: $0.key.label, value: $0.value) })
+        self.orderedLabels = orderedLabels
         labelToSuccessorLabels = labeledBlocks.reduce(into: [:]) { result, entry in
             let (label, block) = entry
             if case .instruction(.effect(let op)) = block.last, op.opType == .ret {
