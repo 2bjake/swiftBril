@@ -6,21 +6,28 @@
 //
 
 enum DataFlowAnalyzer {
+    struct Results<T: Hashable> {
+        let cfg: ControlFlowGraph
+        let inValues: [String: Set<T>]
+        let outValues: [String: Set<T>]
+    }
+
     private static func union<T>(values: [Set<T>]) -> Set<T> {
         values.reduce(into: []) { $0.formUnion($1) }
     }
 
-    static func findDefinedVariables(function: Function) -> [String: Set<String>] {
-        return forwardAnalyzer(cfg: ControlFlowGraph(function: function),
-                               initializer: { ["entry": Set(function.arguments.map(\.name))] },
-                               merge: union,
-                               transfer: { block, values in values.union(block.compactMap(\.destinationIfPresent)) })
+    static func findDefinedVariables(function: Function) -> Results<String> {
+        runAnalysis(cfg: ControlFlowGraph(function: function),
+                    runForward: true,
+                    initializer: { ["entry": Set(function.arguments.map(\.name))] },
+                    merge: union,
+                    transfer: { block, values in values.union(block.compactMap(\.destinationIfPresent)) })
 
     }
 
-    static func findLiveVariables(function: Function) -> [String: Set<String>] {
+    static func findLiveVariables(function: Function) -> Results<String> {
         let cfg = ControlFlowGraph(function: function)
-        guard let lastLabel = cfg.orderedLabels.last else { return [:] }
+        guard let lastLabel = cfg.orderedLabels.last else { return Results(cfg: cfg, inValues: [:], outValues: [:]) }
 
         func use(_ block: ArraySlice<Code>) -> Set<String> {
             var defined = Set<String>()
@@ -38,76 +45,59 @@ enum DataFlowAnalyzer {
             block.compactMap(\.destinationIfPresent)
         }
 
-        return backwardAnalyzer(cfg: cfg,
-                               initializer: { [lastLabel: Set()] },
-                               merge: union,
-                               transfer: { block, values in use(block).union(values.subtracting(gen(block)))}
+        return runAnalysis(cfg: cfg,
+                           runForward: false,
+                           initializer: { [lastLabel: Set()] },
+                           merge: union,
+                           transfer: { block, values in use(block).union(values.subtracting(gen(block)))}
 )
     }
 
-    private typealias Value = Hashable & CustomStringConvertible
-
-    private static func forwardAnalyzer<T: Value>(cfg: ControlFlowGraph,
-                                           initializer: () -> [String: Set<T>] = { [:] },
-                                           merge: ([Set<T>]) -> Set<T>,
-                                           transfer: (ArraySlice<Code>, Set<T>) -> Set<T>) -> [String: Set<T>] {
+    private static func runAnalysis<T>(cfg: ControlFlowGraph,
+                                       runForward: Bool,
+                                       initializer: () -> [String: Set<T>] = { [:] },
+                                       merge: ([Set<T>]) -> Set<T>,
+                                       transfer: (ArraySlice<Code>, Set<T>) -> Set<T>) -> Results<T> {
         var worklist = Set(cfg.labeledBlocks.keys)
 
-        var inValues = initializer()
-        var outValues: [String: Set<T>] = cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
+        var startValues = runForward ? initializer() : cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
+        var endValues = !runForward ? initializer() : cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
+
+        func leadingLabels(of label: String) -> [String] {
+            runForward ? cfg.predecessorLabels(of: label) : cfg.successorLabels(of: label)
+        }
+
+        func trailingLabels(of label: String) -> [String] {
+            runForward ? cfg.successorLabels(of: label) : cfg.predecessorLabels(of: label)
+        }
 
         while let label = worklist.popFirst(), let block = cfg.labeledBlocks[label] {
-            let predecessorValues = cfg.predecessorLabels(of: label).compactMap { outValues[$0] }
-            inValues[label] = merge(predecessorValues)
+            let leadingValues = leadingLabels(of: label).compactMap { endValues[$0] }
+            startValues[label] = merge(leadingValues)
 
-            let newOutValues = transfer(block, inValues[label] ?? [])
-            if newOutValues != outValues[label] {
-                worklist.formUnion(cfg.successorLabels(of: label))
-                outValues[label] = newOutValues
+            let newEndValues = transfer(block, startValues[label] ?? [])
+            if newEndValues != endValues[label] {
+                worklist.formUnion(trailingLabels(of: label))
+                endValues[label] = newEndValues
             }
         }
 
-        for label in cfg.orderedLabels {
-            print("\(label):")
-            let inVals = Array(inValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
-            print("  in:  [ \(inVals) ]")
-            let outVals = Array(outValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
-            print("  out: [ \(outVals) ]")
-        }
-
-        return outValues
+        return Results(cfg: cfg,
+                       inValues: runForward ? startValues : endValues,
+                       outValues: runForward ? endValues : startValues)
     }
+}
 
-    // TODO: can this be unified with forwardAnalyzer?
-    private static func backwardAnalyzer<T: Value>(cfg: ControlFlowGraph,
-                                                   initializer: () -> [String: Set<T>] = { [:] },
-                                                   merge: ([Set<T>]) -> Set<T>,
-                                                   transfer: (ArraySlice<Code>, Set<T>) -> Set<T>) -> [String: Set<T>] {
-        var worklist = Set(cfg.labeledBlocks.keys)
-
-        var inValues: [String: Set<T>] = cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
-        var outValues = initializer()
-
-
-        while let label = worklist.popFirst(), let block = cfg.labeledBlocks[label] {
-            let successorValues = cfg.successorLabels(of: label).compactMap { inValues[$0] }
-            outValues[label] = merge(successorValues)
-
-            let newInValues = transfer(block, outValues[label] ?? [])
-            if newInValues != inValues[label] {
-                worklist.formUnion(cfg.predecessorLabels(of: label))
-                inValues[label] = newInValues
-            }
-        }
-
+extension DataFlowAnalyzer.Results: CustomStringConvertible where T: CustomStringConvertible {
+    var description: String {
+        var str = ""
         for label in cfg.orderedLabels {
-            print("\(label):")
             let inVals = Array(inValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
-            print("  in:  [ \(inVals) ]")
             let outVals = Array(outValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
-            print("  out: [ \(outVals) ]")
+            str += "\(label):\n" +
+                   "  in:  [ \(inVals) ]\n" +
+                   "  out: [ \(outVals) ]\n"
         }
-
-        return inValues
+        return str
     }
 }
