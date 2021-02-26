@@ -5,31 +5,63 @@
 //  Created by Jake Foster on 2/22/21.
 //
 
+private func union<T>(_ sets: [Set<T>]) -> Set<T> {
+    sets.reduce(into: []) { $0.formUnion($1) }
+}
+
 enum DataFlowAnalyzer {
-    struct Results<T: Hashable> {
+    struct Results<T> {
         let cfg: ControlFlowGraph
-        let inValues: [String: Set<T>]
-        let outValues: [String: Set<T>]
+        let inValues: [String: T]
+        let outValues: [String: T]
     }
 
-    private static func union<T>(values: [Set<T>]) -> Set<T> {
-        values.reduce(into: []) { $0.formUnion($1) }
+    static func runConstantPropagationAnalysis(function: Function) -> Results<Dictionary<String, Literal>> {
+        func merge(values: [[String: Literal]]) -> [String: Literal] {
+            guard let first = values.first else { return [:] }
+            let rest = values.dropFirst()
+
+            var result = [String: Literal]()
+            for (key, value) in first {
+                if rest.allSatisfy({ $0[key] == value }) {
+                    result[key] = value
+                }
+            }
+            return result;
+        }
+
+        func transfer(block: ArraySlice<Code>, values: [String: Literal]) -> [String: Literal] {
+            block.reduce(into: values) { result, line in
+                switch line {
+                    case .instruction(.const(let const)):
+                        result[const.destination] = const.value
+                    case .instruction(.value(let value)):
+                        result[value.destination] = nil
+                    default:
+                        break
+                }
+            }
+        }
+
+
+        return runAnalysis(function: function,
+                           runForward: true,
+                           initializer: Dictionary.init,
+                           merge: merge,
+                           transfer: transfer)
     }
 
-    static func findDefinedVariables(function: Function) -> Results<String> {
-        runAnalysis(cfg: ControlFlowGraph(function: function),
+    static func runDefinedVariablesAnalysis(function: Function) -> Results<Set<String>> {
+        runAnalysis(function: function,
                     runForward: true,
-                    initializer: { ["entry": Set(function.arguments.map(\.name))] },
+                    initializer: Set.init,
                     merge: union,
                     transfer: { block, values in values.union(block.compactMap(\.destinationIfPresent)) })
 
     }
 
-    static func findLiveVariables(function: Function) -> Results<String> {
-        let cfg = ControlFlowGraph(function: function)
-        guard let lastLabel = cfg.orderedLabels.last else { return Results(cfg: cfg, inValues: [:], outValues: [:]) }
-
-        func use(_ block: ArraySlice<Code>) -> Set<String> {
+    static func runLiveVariablesAnalysis(function: Function) -> Results<Set<String>> {
+        func transfer(block: ArraySlice<Code>, values: Set<String>) -> Set<String> {
             var defined = Set<String>()
             var used = Set<String>()
             for line in block {
@@ -38,30 +70,33 @@ enum DataFlowAnalyzer {
                     defined.insert(dest)
                 }
             }
-            return used
+            return used.union(values.subtracting(defined))
         }
 
-        func gen(_ block: ArraySlice<Code>) -> [String] {
-            block.compactMap(\.destinationIfPresent)
-        }
-
-        return runAnalysis(cfg: cfg,
+        return runAnalysis(function: function,
                            runForward: false,
-                           initializer: { [lastLabel: Set()] },
+                           initializer: Set.init,
                            merge: union,
-                           transfer: { block, values in use(block).union(values.subtracting(gen(block)))}
-)
+                           transfer: transfer)
     }
 
-    private static func runAnalysis<T>(cfg: ControlFlowGraph,
-                                       runForward: Bool,
-                                       initializer: () -> [String: Set<T>] = { [:] },
-                                       merge: ([Set<T>]) -> Set<T>,
-                                       transfer: (ArraySlice<Code>, Set<T>) -> Set<T>) -> Results<T> {
-        var worklist = Set(cfg.labeledBlocks.keys)
+    private static func runAnalysis<T: Equatable>(function: Function,
+                                                  runForward: Bool,
+                                                  initializer: () -> T,
+                                                  merge: ([T]) -> T,
+                                                  transfer: (ArraySlice<Code>, T) -> T) -> Results<T> {
+        let cfg = ControlFlowGraph(function: function)
+        guard let beginLabel = (runForward ? cfg.orderedLabels.first : cfg.orderedLabels.last) else {
+            return Results(cfg: cfg, inValues: [:], outValues: [:])
+        }
 
-        var startValues = runForward ? initializer() : cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
-        var endValues = !runForward ? initializer() : cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = [] }
+        let allInitialized = cfg.labeledBlocks.keys.reduce(into: [:]) { $0[$1] = initializer() }
+        let beginInitialized = [beginLabel: initializer()]
+
+        var startValues = runForward ? beginInitialized : allInitialized
+        var endValues = !runForward ? beginInitialized : allInitialized
+
+        var worklist = Set(cfg.labeledBlocks.keys)
 
         func leadingLabels(of label: String) -> [String] {
             runForward ? cfg.predecessorLabels(of: label) : cfg.successorLabels(of: label)
@@ -75,7 +110,7 @@ enum DataFlowAnalyzer {
             let leadingValues = leadingLabels(of: label).compactMap { endValues[$0] }
             startValues[label] = merge(leadingValues)
 
-            let newEndValues = transfer(block, startValues[label] ?? [])
+            let newEndValues = transfer(block, startValues[label] ?? initializer())
             if newEndValues != endValues[label] {
                 worklist.formUnion(trailingLabels(of: label))
                 endValues[label] = newEndValues
@@ -88,12 +123,28 @@ enum DataFlowAnalyzer {
     }
 }
 
-extension DataFlowAnalyzer.Results: CustomStringConvertible where T: CustomStringConvertible {
+protocol DataFlowAnalysisStringConvertible {
+    var analysisDescription: String { get }
+}
+
+extension Set: DataFlowAnalysisStringConvertible where Element: CustomStringConvertible {
+    var analysisDescription: String {
+        self.map(\.description).sorted().joined(separator: ", ")
+    }
+}
+
+extension Dictionary: DataFlowAnalysisStringConvertible where Key: CustomStringConvertible, Value: CustomStringConvertible {
+    var analysisDescription: String {
+        self.map { "\($0.key): \($0.value)" }.sorted().joined(separator: ", ")
+    }
+}
+
+extension DataFlowAnalyzer.Results: CustomStringConvertible where T: DataFlowAnalysisStringConvertible {
     var description: String {
         var str = ""
         for label in cfg.orderedLabels {
-            let inVals = Array(inValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
-            let outVals = Array(outValues[label] ?? []).map(\.description).sorted().joined(separator: ", ")
+            let inVals = inValues[label]?.analysisDescription ?? "∅"
+            let outVals = outValues[label]?.analysisDescription ?? "∅"
             str += "\(label):\n" +
                    "  in:  [ \(inVals) ]\n" +
                    "  out: [ \(outVals) ]\n"
