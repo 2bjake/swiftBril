@@ -21,6 +21,9 @@ struct ValueOperation {
         case or
         case call
         case id
+        #if SSA_SUPPORT
+        case phi
+        #endif
     }
     let opType: OpType
     var destination: String
