@@ -37,7 +37,7 @@ enum BlockLabel {
 extension BlockLabel {
     var label: String {
         switch self {
-            case .entry: return "entry"
+            case .entry: return "cfg.entry"
             case .labeled(let value), .unlabeled(let value): return value
         }
     }

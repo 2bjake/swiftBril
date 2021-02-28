@@ -28,7 +28,14 @@ struct ControlFlowGraph {
     }
 
     init(function: Function) {
-        let (blocks, orderedLabels) = function.makeLabeledBlocks()
+        var (blocks, orderedLabels) = function.makeLabeledBlocks()
+
+        // insert a entry block if the first label is ever jumped to
+        if function.code.contains(where: { $0.operation?.labels.contains(orderedLabels[0]) ?? false } ) {
+            blocks[.entry] = []
+            orderedLabels.insert(BlockLabel.entry.label, at: 0)
+        }
+
         labeledBlocks = .init(uniqueKeysWithValues: blocks.map { (key: $0.key.label, value: $0.value) })
         self.orderedLabels = orderedLabels
         labelToSuccessorLabels = labeledBlocks.reduce(into: [:]) { result, entry in
