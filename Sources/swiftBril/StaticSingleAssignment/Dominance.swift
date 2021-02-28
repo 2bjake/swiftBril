@@ -43,15 +43,16 @@ enum SSA {
                 }
             }
         }
+        return strict ? makeStrict(labelToDominators) : labelToDominators
+    }
 
-        if strict {
-            for (label, dominators) in labelToDominators {
-                var strictDominators = dominators
-                strictDominators.remove(label)
-                labelToDominators[label] = strictDominators
-            }
+    static func makeStrict(_ labelToDominators: [String: Set<String>]) -> [String: Set<String>] {
+        var labelToDominators = labelToDominators
+        for (label, dominators) in labelToDominators {
+            var strictDominators = dominators
+            strictDominators.remove(label)
+            labelToDominators[label] = strictDominators
         }
-
         return labelToDominators
     }
 
@@ -71,11 +72,44 @@ enum SSA {
         }
         return immediateDominators
     }
+
+    static func findDominanceFrontiers(cfg: ControlFlowGraph) -> [String: Set<String>] {
+        let labelToDominators = findDominators(cfg: cfg)
+        let labelToStrictDominators = makeStrict(labelToDominators)
+        let dominatorToDominated = labelToDominators.inverted()
+
+        var result = [String: Set<String>]()
+
+        for dominator in cfg.orderedLabels {
+            guard let dominated = dominatorToDominated[dominator] else {
+                result[dominator] = []
+                continue
+            }
+
+            dominated.forEach {
+                let frontier = cfg.successorLabels(of: $0).filter {
+                    guard let dominators = labelToStrictDominators[$0] else { return true }
+                    return !dominators.contains(dominator)
+                }
+                result[dominator, default: []].formUnion(frontier)
+            }
+        }
+        return result
+    }
 }
 
-extension SSA {
-    static func intersection<T>(_ sets: [Set<T>]) -> Set<T> {
-        guard let first = sets.first else { return [] }
-        return sets.dropFirst().reduce(into: first) { result, set in result.formIntersection(set) }
+
+private func intersection<T>(_ sets: [Set<T>]) -> Set<T> {
+    guard let first = sets.first else { return [] }
+    return sets.dropFirst().reduce(into: first) { result, set in result.formIntersection(set) }
+}
+
+private extension Dictionary {
+    func inverted<ValueElement>() -> [ValueElement: Set<Key>] where Value == Set<ValueElement> {
+        reduce(into: [:]) { result, entry in
+            for value in entry.value {
+                result[value, default: []].insert(entry.key)
+            }
+        }
     }
 }
