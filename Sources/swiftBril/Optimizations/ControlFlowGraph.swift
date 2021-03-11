@@ -28,16 +28,21 @@ struct ControlFlowGraph {
     }
 
     init(function: Function) {
-        var (blocks, orderedLabels) = function.makeLabeledBlocks()
+        var blocks = function.makeBlocks(includeEmpty: true)
 
-        // insert a entry block if the first label is ever jumped to
-        if function.code.contains(where: { $0.operation?.labels.contains(orderedLabels[0]) ?? false } ) {
-            blocks[.entry] = []
-            orderedLabels.insert(BlockLabel.entry.label, at: 0)
+        if blocks.isEmpty {
+            blocks.append(.emptyEntry)
         }
 
-        labeledBlocks = .init(uniqueKeysWithValues: blocks.map { (key: $0.key.label, value: $0.value) })
-        self.orderedLabels = orderedLabels
+        // insert a entry block if the first label is ever jumped to
+        if function.code.contains(where: { $0.operation?.labels.contains(blocks[0].label.name) ?? false } ) {
+            blocks.insert(.emptyEntry, at: 0)
+        }
+
+        labeledBlocks = blocks.reduce(into: [:]) { result, block in
+            result[block.label.name] = block.code
+        }
+        self.orderedLabels = blocks.map(\.label.name)
         labelToSuccessorLabels = labeledBlocks.reduce(into: [:]) { result, entry in
             let (label, block) = entry
             if case .instruction(.effect(let op)) = block.last, op.opType == .ret {
@@ -60,4 +65,8 @@ struct ControlFlowGraph {
             }
         }
     }
+}
+
+private extension Block {
+    static var emptyEntry: Block { .init(label: .entry, code: []) }
 }

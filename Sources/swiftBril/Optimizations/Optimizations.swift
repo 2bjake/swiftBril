@@ -28,43 +28,42 @@ private extension Code {
     }
 }
 
-enum BlockLabel {
-    case entry
-    case labeled(String)
-    case unlabeled(String)
+struct Block {
+    enum Label {
+        case entry
+        case labeled(String)
+        case unlabeled(Int)
+    }
+
+    let label: Label
+    let code: ArraySlice<Code>
 }
 
-extension BlockLabel {
-    var label: String {
+extension Block.Label {
+    var name: String {
         switch self {
             case .entry: return "cfg.entry"
-            case .labeled(let value), .unlabeled(let value): return value
+            case .labeled(let value): return value
+            case .unlabeled(let value): return "cfg.\(value)"
         }
     }
 }
 
-extension BlockLabel: Hashable { }
-
-struct Block {
-    let label: BlockLabel
-    let code: ArraySlice<String>
-}
-
 extension Function {
-    func makeBlock(startingAt idx: Int) -> (BlockLabel, ArraySlice<Code>)? {
+    func makeBlock(startingAt idx: Int) -> Block? {
         guard idx < code.count else { return nil }
-        let label: BlockLabel
+        let label: Block.Label
         let blockStart: Int
         if case .label(let labelName) = code[idx] {
             label = .labeled(labelName)
             blockStart = idx + 1
         } else {
-            label = idx == 0 ? .entry : .unlabeled("\(idx)")
+            label = idx == 0 ? .entry : .unlabeled(idx)
             blockStart = idx
         }
 
         if blockStart >= code.count {
-            return (label, [])
+            return Block(label: label, code: [])
         }
 
         for i in blockStart..<code.count {
@@ -73,31 +72,19 @@ extension Function {
                 if case .label = slice.last {
                     slice = slice.dropLast()
                 }
-                return (label, slice)
+                return Block(label: label, code: slice)
             }
         }
-        return (label, code[blockStart...(code.count - 1)])
+        return Block(label: label, code: code[blockStart...(code.count - 1)])
     }
 
-    func makeLabeledBlocks() -> (labeledBlocks: [BlockLabel: ArraySlice<Code>], orderedLabels: [String]) {
-        var labeledBlocks = [BlockLabel: ArraySlice<Code>]()
-        var orderedLabels = [String]()
+    func makeBlocks(includeEmpty: Bool = false) -> [Block] {
+        var result = [Block]()
         var curIdx = 0
-        while let (label, block) = makeBlock(startingAt: curIdx) {
-            labeledBlocks[label] = block
-            orderedLabels.append(label.label)
-            curIdx = block.endIndex
-        }
-        return (labeledBlocks, orderedLabels)
-    }
-
-    func makeBlocks() -> [ArraySlice<Code>] {
-        var result = [ArraySlice<Code>]()
-        var curIdx = 0
-        while let (_, block) = makeBlock(startingAt: curIdx) {
-            if !block.isEmpty {
+        while let block = makeBlock(startingAt: curIdx) {
+            if includeEmpty || !block.code.isEmpty {
                 result.append(block)
-                curIdx = block.endIndex
+                curIdx = block.code.endIndex
             } else {
                 curIdx += 1
             }

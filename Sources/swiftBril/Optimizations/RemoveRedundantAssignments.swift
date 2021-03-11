@@ -10,12 +10,12 @@ extension Optimizations {
         var deleteIndicies = [Int]()
         for block in function.makeBlocks() {
             var lastDef = [String: Int]()
-            for i in block.indices {
-                block[i].arguments.forEach {
+            for i in block.code.indices {
+                block.code[i].arguments.forEach {
                     lastDef[$0] = nil
                 }
 
-                if let dest = block[i].destinationIfPresent {
+                if let dest = block.code[i].destinationIfPresent {
                     if let unusedIdx = lastDef[dest] {
                         deleteIndicies.append(unusedIdx)
                     }

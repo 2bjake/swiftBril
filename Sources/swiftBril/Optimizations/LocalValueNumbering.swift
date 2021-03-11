@@ -95,16 +95,16 @@ extension Optimizations {
         for block in function.makeBlocks() {
             var varsWritten = [String: Type]()
             var varsReadBeforeWrite = Set<String>()
-            for i in block.indices {
-                varsReadBeforeWrite.formUnion(Set(block[i].arguments).subtracting(varsWritten.keys))
-                if let dest = block[i].destinationIfPresent, let type = block[i].typeIfPresent {
+            for i in block.code.indices {
+                varsReadBeforeWrite.formUnion(Set(block.code[i].arguments).subtracting(varsWritten.keys))
+                if let dest = block.code[i].destinationIfPresent, let type = block.code[i].typeIfPresent {
                     varsWritten[dest] = type
                 }
             }
 
             for (dest, type) in varsWritten where varsReadBeforeWrite.contains(dest) {
                 let code = Code.instruction(.value(.init(opType: .id, destination: dest, type: type, arguments: [dest], functions: [], labels: [])))
-                function.code.insert(code, at: block.startIndex)
+                function.code.insert(code, at: block.code.startIndex)
             }
 
         }
@@ -124,16 +124,16 @@ extension Optimizations {
             var table = ValueTable()
             var varToNum = [String: Int]()
 
-            let varToLastWriteIndex: [String: Int] = block.indices.reduce(into: [:]) { result, index in
-                if let dest = block[index].destinationIfPresent {
+            let varToLastWriteIndex: [String: Int] = block.code.indices.reduce(into: [:]) { result, index in
+                if let dest = block.code[index].destinationIfPresent {
                     result[dest] = index
                 }
             }
 
-            for i in block.indices {
+            for i in block.code.indices {
                 var valueNumber: Int?
 
-                if case .instruction(.const(let op)) = block[i] {
+                if case .instruction(.const(let op)) = block.code[i] {
                     let value = ValueTable.Value.constant(op.value)
 
                     // if op.destination is overwritten later, we need to save this under
@@ -146,12 +146,12 @@ extension Optimizations {
 
                     let entry = table.entryForValue(value) ?? table.insert(value: value, variableName: dest)
                     valueNumber = entry.number
-                } else if case .instruction(.value(let op)) = block[i], op.opType != .call {
+                } else if case .instruction(.value(let op)) = block.code[i], op.opType != .call {
                     var value: ValueTable.Value
                     if op.opType == .id, let variableName = op.arguments.first, let num = varToNum[variableName] {
                         value = table.entryForNumber(num).value
                     } else {
-                        value = ValueTable.Value(op.opType, argNumbers: block[i].arguments.map {
+                        value = ValueTable.Value(op.opType, argNumbers: block.code[i].arguments.map {
                             if varToNum[$0] == nil {
                                 let num = table.insertInputVariable($0)
                                 varToNum[$0] = num
@@ -195,7 +195,7 @@ extension Optimizations {
                     function.code[i].replaceArgsWith(newArgs)
                 }
 
-                if let valueNumber = valueNumber, let dest = block[i].destinationIfPresent {
+                if let valueNumber = valueNumber, let dest = block.code[i].destinationIfPresent {
                     varToNum[dest] = valueNumber
                 }
             }

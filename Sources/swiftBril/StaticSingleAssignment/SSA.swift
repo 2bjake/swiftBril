@@ -43,8 +43,8 @@ enum SSA {
     /// returns a mapping of variable names to the blocks (labels) that define them
     private static func buildDefiningMapping(function: Function) -> [String: Set<String>] {
         var labelToDefinitions = [String: Set<String>]()
-        for (label, block) in function.makeLabeledBlocks().labeledBlocks {
-            labelToDefinitions[label.label] = Set(block.compactMap(\.destinationIfPresent))
+        for block in function.makeBlocks(includeEmpty: true) {
+            labelToDefinitions[block.label.name] = Set(block.code.compactMap(\.destinationIfPresent))
         }
         return labelToDefinitions.inverted()
     }
