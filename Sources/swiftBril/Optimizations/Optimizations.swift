@@ -45,6 +45,11 @@ extension BlockLabel {
 
 extension BlockLabel: Hashable { }
 
+struct Block {
+    let label: BlockLabel
+    let code: ArraySlice<String>
+}
+
 extension Function {
     func makeBlock(startingAt idx: Int) -> (BlockLabel, ArraySlice<Code>)? {
         guard idx < code.count else { return nil }

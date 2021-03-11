@@ -5,7 +5,7 @@
 //  Created by Jake Foster on 2/27/21.
 //
 
-enum SSA {
+extension SSA {
     private static func reversePostOrderedLabels(cfg: ControlFlowGraph) -> [String] {
         var result = [String]()
         var visited = Set<String>()
@@ -23,7 +23,7 @@ enum SSA {
         return result.reversed()
     }
 
-    // returns a dictionary of labels to their dominator labels
+    /// returns a dictionary of labels to their dominator labels
     static func findDominators(cfg: ControlFlowGraph, strict: Bool = false) -> [String: Set<String>] {
         let labelSet = Set(cfg.orderedLabels)
         var labelToDominators = [String: Set<String>]()
@@ -56,7 +56,8 @@ enum SSA {
         return labelToDominators
     }
 
-    // returns a dictionary of labels to the labels they immediately dominate
+    /// returns a dictionary of labels to the labels they immediately dominate
+    /// this is effectively a representation of the dominance tree
     static func findImmediateDominators(cfg: ControlFlowGraph) -> [String: Set<String>] {
         var dominations = findDominators(cfg: cfg, strict: true)
         var immediateDominators: [String: Set<String>] = dominations.keys.reduce(into: [:]) { $0[$1] = [] }
@@ -73,16 +74,17 @@ enum SSA {
         return immediateDominators
     }
 
+    /// returns mapping of block labels to the blocks (labels) that are in its dominance frontier
     static func findDominanceFrontiers(cfg: ControlFlowGraph) -> [String: Set<String>] {
         let labelToDominators = findDominators(cfg: cfg)
         let labelToStrictDominators = makeStrict(labelToDominators)
         let dominatorToDominated = labelToDominators.inverted()
 
-        var result = [String: Set<String>]()
+        var labelToFrontierLabels = [String: Set<String>]()
 
         for dominator in cfg.orderedLabels {
             guard let dominated = dominatorToDominated[dominator] else {
-                result[dominator] = []
+                labelToFrontierLabels[dominator] = []
                 continue
             }
 
@@ -91,24 +93,23 @@ enum SSA {
                     guard let dominators = labelToStrictDominators[$0] else { return true }
                     return !dominators.contains(dominator)
                 }
-                result[dominator, default: []].formUnion(frontier)
+                labelToFrontierLabels[dominator, default: []].formUnion(frontier)
             }
         }
-        return result
+        return labelToFrontierLabels
     }
 }
-
 
 private func intersection<T>(_ sets: [Set<T>]) -> Set<T> {
     guard let first = sets.first else { return [] }
     return sets.dropFirst().reduce(into: first) { result, set in result.formIntersection(set) }
 }
 
-private extension Dictionary {
+extension Dictionary {
     func inverted<ValueElement>() -> [ValueElement: Set<Key>] where Value == Set<ValueElement> {
         reduce(into: [:]) { result, entry in
-            for value in entry.value {
-                result[value, default: []].insert(entry.key)
+            for element in entry.value {
+                result[element, default: []].insert(entry.key)
             }
         }
     }
