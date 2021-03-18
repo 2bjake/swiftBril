@@ -79,10 +79,12 @@ enum SSA {
     }
 
     static func convertToSSA(function: Function) -> Function {
+        let cfg = ControlFlowGraph(function: function)
+        guard !cfg.orderedLabels.isEmpty else { return function }
+
         var function = function
-
-
         let varToType = getVariableTypes(function: function)
+        let immediateDominators = findImmediateDominators(cfg: cfg)
 
         var labelToVarToPhiBuilders = findNeededPhis(function: function).mapValues { variables in
             variables.reduce(into: [:]) { result, variable in
@@ -90,29 +92,75 @@ enum SSA {
             }
         }
 
-        var varToNameStack = varToType.reduce(into: [:]) { result, entry in
-            result[entry.key] = [String]()
-        }
-
         var counter = 0
-        func pushNewNameFor(_ variable: String) -> String {
-            let newName = "\(variable).\(counter)"
-            counter += 1
-            varToNameStack[variable]?.append(newName)
-            return newName
+        func rename(label: String, varToNameStack: [String: [String]]) {
+            guard let block = cfg.labeledBlocks[label] else { return }
+            var varToNameStack = varToNameStack
+
+            func pushNewNameFor(_ variable: String) -> String {
+                let newName = "\(variable).\(counter)"
+                counter += 1
+                varToNameStack[variable]?.append(newName)
+                return newName
+            }
+
+            // update phi builders with new destinations
+            if let variables = labelToVarToPhiBuilders[label]?.keys {
+                for variable in variables {
+                    labelToVarToPhiBuilders[label]?[variable]?.newDestination = pushNewNameFor(variable)
+                }
+            }
+
+            // update arguments and destinations with new names
+            for idx in block.indices {
+                switch function.code[idx] {
+                    case .instruction(.const(var op)):
+                        op.destination = pushNewNameFor(op.destination)
+                        function.code[idx] = .instruction(.const(op))
+                    case .instruction(.value(var op)):
+                        op.arguments = op.arguments.map { varToNameStack[$0]!.last! }
+                        op.destination = pushNewNameFor(op.destination)
+                        function.code[idx] = .instruction(.value(op))
+                    case .instruction(.effect(var op)):
+                        op.arguments = op.arguments.map { varToNameStack[$0]!.last! }
+                        function.code[idx] = .instruction(.effect(op))
+                    case .label:
+                        break
+                }
+            }
+
+            for successorLabel in cfg.successorLabels(of: label) {
+                guard let variables = labelToVarToPhiBuilders[successorLabel]?.keys else { continue }
+                for variable in variables {
+                    let newName = varToNameStack[variable]?.last ?? "__undefined"
+                    labelToVarToPhiBuilders[successorLabel]?[variable]?.addArg(newName, forLabel: label)
+                }
+            }
+
+            // sorting isn't strictly necessary but makes the generated labels deterministic from run to run
+            immediateDominators[label]?.sorted().forEach {
+                rename(label: $0, varToNameStack: varToNameStack)
+            }
         }
 
-//        let (labelToBlock, labels) = function.makeLabeledBlocks()
-//        for label in labels {
-//            // update phi builders with new destinations
-//            if let variables = labelToVarToPhiBuilders[label]?.keys {
-//                for variable in variables {
-//                    labelToVarToPhiBuilders[label]?[variable]?.newDestination = pushNewNameFor(variable)
-//                }
-//            }
-//
-//
-//        }
+        var varToNameStack = varToType.reduce(into: [:]) { result, entry in
+            result[entry.key] = [entry.key]
+        }
+        // need to add function args as well
+        function.arguments.forEach {
+            varToNameStack[$0.name] = [$0.name]
+        }
+
+        rename(label: cfg.orderedLabels[0], varToNameStack: varToNameStack)
+
+        // insert phi nodes
+        for label in cfg.orderedLabels.reversed() {
+            guard let varToBuilder = labelToVarToPhiBuilders[label] else { continue }
+            let insertIdx = cfg.labeledBlocks[label]!.startIndex
+            varToBuilder.forEach { variable, builder in
+                try! function.code.insert(.instruction(builder.build()), at: insertIdx)
+            }
+        }
 
         return function
     }
