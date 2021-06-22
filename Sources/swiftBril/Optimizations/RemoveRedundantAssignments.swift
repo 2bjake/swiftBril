@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
+import Bril
+
 extension Optimizations {
     private static func findRedundantAssignmentIndiciesSinglePass(_ function: Function) -> [Int] {
         var deleteIndicies = [Int]()

@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/22/21.
 //
 
+import Bril
+
 enum DataFlowAnalyzer {
     struct Results<T> {
         let cfg: ControlFlowGraph

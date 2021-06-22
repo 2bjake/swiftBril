@@ -5,7 +5,7 @@
 //  Created by Jake Foster on 2/18/21.
 //
 
-enum Code {
+public enum Code {
     case label(String)
     case instruction(Instruction)
 }
@@ -16,7 +16,7 @@ extension Code: Decodable {
         case op
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let label = try container.decodeIfPresent(String.self, forKey: .label) {
             self = .label(label)
@@ -29,7 +29,7 @@ extension Code: Decodable {
 }
 
 extension Code: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         switch self {
             case .label(let label):
                 return ".\(label):"
@@ -42,7 +42,7 @@ extension Code: CustomStringConvertible {
 // convenience properties
 
 extension Code {
-    var operation: Operation? {
+    public var operation: Operation? {
         guard case .instruction(let instruction) = self else {
             return nil
         }
@@ -51,9 +51,9 @@ extension Code {
 }
 
 extension Code {
-    var arguments: [String] { operation?.arguments ?? [] }
-    var functions: [String] { operation?.functions ?? [] }
-    var labels: [String] { operation?.labels ?? [] }
-    var destinationIfPresent: String? { operation?.destinationIfPresent }
-    var typeIfPresent: Type? { operation?.typeIfPresent }
+    public var arguments: [String] { operation?.arguments ?? [] }
+    public var functions: [String] { operation?.functions ?? [] }
+    public var labels: [String] { operation?.labels ?? [] }
+    public var destinationIfPresent: String? { operation?.destinationIfPresent }
+    public var typeIfPresent: Type? { operation?.typeIfPresent }
 }

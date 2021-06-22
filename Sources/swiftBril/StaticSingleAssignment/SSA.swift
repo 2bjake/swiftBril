@@ -5,6 +5,7 @@
 //  Created by Jake Foster on 2/28/21.
 //
 
+import Bril
 
 private struct PhiBuilder {
     enum BuildError: Error { case destinationMissing, argumentsMissing }

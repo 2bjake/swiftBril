@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/26/21.
 //
 
+import Bril
+
 enum ConstantPropagation: Equatable {
     case constant(Literal)
     case nonConstant

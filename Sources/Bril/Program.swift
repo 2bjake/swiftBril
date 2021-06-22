@@ -5,12 +5,12 @@
 //  Created by Jake Foster on 2/18/21.
 //
 
-struct Program: Decodable {
-    var functions: [Function]
+public struct Program: Decodable {
+    public var functions: [Function]
 }
 
 extension Program: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         functions.map(String.init).joined(separator: "\n\n")
     }
 }

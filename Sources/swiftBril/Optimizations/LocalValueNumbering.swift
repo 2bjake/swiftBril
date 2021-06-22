@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
+import Bril
+
 private extension Code {
     static func makeId(_ variable: String, from original: ValueOperation) -> Code {
         return .instruction(.value(ValueOperation(opType: .id, destination: original.destination, type: original.type, arguments: [variable], functions: [], labels: [])))

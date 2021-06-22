@@ -5,13 +5,13 @@
 //  Created by Jake Foster on 2/18/21.
 //
 
-indirect enum Type {
+public indirect enum Type {
     case primitive(String)
     case parameterized(String, Type)
 }
 
 extension Type: Decodable {
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         if let str = try? decoder.singleValueContainer().decode(String.self) {
             self = .primitive(str)
         } else {
@@ -27,7 +27,7 @@ extension Type: Decodable {
 }
 
 extension Type: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         switch self {
             case .primitive(let type):
                 return type

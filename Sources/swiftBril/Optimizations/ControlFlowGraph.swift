@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/22/21.
 //
 
+import Bril
+
 struct ControlFlowGraph {
     let labeledBlocks: [String: ArraySlice<Code>]
     let orderedLabels: [String]

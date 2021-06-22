@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/19/21.
 //
 
+import Bril
+
 enum Optimizations { }
 
 extension Array {

@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
+import Bril
+
 struct ValueTable {
     enum Value: Hashable {
         case constant(Literal)

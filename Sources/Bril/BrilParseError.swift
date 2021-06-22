@@ -7,6 +7,6 @@
 
 import Foundation
 
-struct BrilParseError: Error {
+public struct BrilParseError: Error {
     let message: String
 }

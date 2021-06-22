@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
+import Bril
+
 extension Optimizations {
     private static func removeUnusedAssignmentsSinglePass(_ function: Function) -> (changed: Bool, function: Function) {
         var changed = false

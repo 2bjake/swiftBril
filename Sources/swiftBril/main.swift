@@ -1,11 +1,12 @@
 import Foundation
+import Bril
 
 let data = FileHandle.standardInput.availableData
 
 var program = try! JSONDecoder().decode(Program.self, from: data)
-print(program)
+//print(program)
 let function = program.functions[0]
-print()
+//print()
 //print(program.optimize())
 //print("live variables analysis:")
 //print(DataFlowAnalyzer.runLiveVariablesAnalysis(function: function))

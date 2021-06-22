@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/23/21.
 //
 
+import Bril
+
 extension Optimizations {
     private static func findDeadCodeIndicies(function: Function) -> [Int] {
         var result = [Int]()

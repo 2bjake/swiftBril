@@ -5,14 +5,14 @@
 //  Created by Jake Foster on 2/18/21.
 //
 
-enum Instruction {
+public enum Instruction {
     case const(ConstantOperation)
     case value(ValueOperation)
     case effect(EffectOperation)
 }
 
 extension Instruction {
-    var operation: Operation {
+    public var operation: Operation {
         switch self {
             case .const(let op): return op
             case .value(let op): return op
@@ -99,7 +99,7 @@ extension Instruction: Decodable {
         return .effect(.init(opType: op, arguments: args, functions: funcs, labels: labels))
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         guard let opStr = try? container.decodeIfPresent(String.self, forKey: .op) else {
             throw BrilParseError(message: "Instruction did not contain 'op' field")
@@ -127,7 +127,7 @@ extension Instruction: CustomStringConvertible {
             ";"
     }
 
-    var description: String {
+    public var description: String {
         switch self {
             case .const(let op):
                 return "\(op.destination): \(op.type) = \(op.name) \(op.value);"

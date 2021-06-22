@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol DecodeDefaulting: Decodable {
+public protocol DecodeDefaulting: Decodable {
     static var defaultDecodingValue: Self { get }
 }
 
 extension Array: DecodeDefaulting where Element: Decodable {
-    static var defaultDecodingValue: Self { [] }
+    public static var defaultDecodingValue: Self { [] }
 }
 
 //extension Dictionary: DecodeDefaulting where Key: Decodable, Value: Decodable {
@@ -20,14 +20,14 @@ extension Array: DecodeDefaulting where Element: Decodable {
 //}
 
 @propertyWrapper
-struct DefaultDecodable<T: DecodeDefaulting>: Decodable {
-    var wrappedValue: T
+public struct DefaultDecodable<T: DecodeDefaulting>: Decodable {
+    public var wrappedValue: T
 
-    init(wrappedValue: T) {
+    public init(wrappedValue: T) {
         self.wrappedValue = wrappedValue
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.wrappedValue = (try? container.decode(T.self)) ?? T.defaultDecodingValue
     }

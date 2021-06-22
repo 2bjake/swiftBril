@@ -5,11 +5,11 @@
 //  Created by Jake Foster on 2/18/21.
 //
 
-struct Function {
-    var name: String
-    @DefaultDecodable var arguments: [Argument]
-    var type: Type?
-    var code: [Code]
+public struct Function {
+    public var name: String
+    @DefaultDecodable public var arguments: [Argument]
+    public var type: Type?
+    public var code: [Code]
 }
 
 extension Function: Decodable {
@@ -22,7 +22,7 @@ extension Function: Decodable {
 }
 
 extension Function: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         var val = "@\(name)"
 
         if !arguments.isEmpty {

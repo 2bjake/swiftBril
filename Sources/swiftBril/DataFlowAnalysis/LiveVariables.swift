@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/26/21.
 //
 
+import Bril
+
 extension DataFlowAnalyzer {
     private static func transfer(block: ArraySlice<Code>, values: Set<String>) -> Set<String> {
         var defined = Set<String>()

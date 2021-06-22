@@ -5,6 +5,8 @@
 //  Created by Jake Foster on 2/20/21.
 //
 
+import Bril
+
 extension Optimizations {
     /// Remove labels that are never referenced
     static func removeUnusedLabels(_ function: Function) -> Function {
