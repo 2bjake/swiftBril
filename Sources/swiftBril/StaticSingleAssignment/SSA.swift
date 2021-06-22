@@ -78,6 +78,36 @@ enum SSA {
         return labelToVars
     }
 
+//    private static func findPhiOps(cfg: ControlFlowGraph) -> [String: [ValueOperation]] {
+//        var labelToPhis: [String: [ValueOperation]] = [:]
+//
+//        for (label, code) in cfg.labeledBlocks {
+//            for instr in code {
+//                switch instr {
+//                    case .instruction(.value(let op)) where op.opType == .phi:
+//                        labelToPhis[label, default: []].append(op)
+//                    default:
+//                        break
+//                }
+//            }
+//        }
+//        return labelToPhis
+//    }
+
+//    private static func makeAssignJmpBlocks(toLabel: String, phiOp: ValueOperation) -> [[Code]] {
+//
+//    }
+
+//    static func convertFromSSA(function: Function) -> Function {
+//        let cfg = ControlFlowGraph(function: function)
+//        guard !cfg.orderedLabels.isEmpty else { return function }
+//
+//        let labelToPhis = findPhiOps(cfg: cfg)
+//
+//
+//
+//    }
+
     static func convertToSSA(function: Function) -> Function {
         let cfg = ControlFlowGraph(function: function)
         guard !cfg.orderedLabels.isEmpty else { return function }
